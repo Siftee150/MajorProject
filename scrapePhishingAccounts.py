@@ -14,6 +14,7 @@ driver.implicitly_wait(20)  # gives an implicit wait for 20 seconds
 # pointer starting from 2 as
 
 url_list = []
+reached_end = False
 while True:
     c = 2
     while True:
@@ -28,8 +29,12 @@ while True:
                 link = accountUrl.get_attribute('href')
                 url_list.append(link)
         except:
+            if (c == 2):
+                reached_end = True
             break
         c = c+1
+    if (reached_end == True):
+        break
     try:
         pageXpath = '/html/body/div/div/div/div[3]/div[1]/div/div/div/div[6]'
         page = driver.find_element(By.XPATH, pageXpath)
