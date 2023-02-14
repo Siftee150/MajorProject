@@ -15,7 +15,7 @@ for url in url_data:
         phishing_addresses.append([address.text])
     except:
         continue
-with open('phishingaddress', 'w') as f:
+with open('phishingaddress.csv', 'w') as f:
     write = csv.writer(f)
     write.writerows(phishing_addresses)
 file.close()
