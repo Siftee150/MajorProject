@@ -6,6 +6,7 @@ import os
 
 apikey = "SQC918GDCD8TXY5MJUPNFMKC73UK56A7KW"
 
+PATH = './Dataset'
 
 http_headers = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko)'
                 ' Chrome/58.0.3029.110 Safari/537.36'}
@@ -88,7 +89,7 @@ def get_neighbor_list(prev, address):
         return []
     # print(df_address)
     set_neighbor = set()
-    newpath = prev + '/' + address + '/'
+    newpath = PATH+'/'+prev + '/' + address + '/'
     if not os.path.exists(newpath):
         os.makedirs(newpath)
     for i in df_address.index:
@@ -125,7 +126,7 @@ def read_data(k, filename, b, e=1):
         address = df_address.address[i]
         # print('------------------------------------')
         # print('begin', i, address)
-        newpath = address + '_data'
+        newpath = PATH+'/'+address + '_data'
         if not os.path.exists(newpath):
             os.makedirs(newpath)
         get_k_order_neighbor(k, 0, newpath, address)

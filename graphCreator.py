@@ -1,39 +1,64 @@
+import csv
+import pickle
 import pandas as pd
 import networkx as nx
 import os
 import re
 import matplotlib.pyplot as plt
 from node2vec import Node2Vec
+
 PATH = './Dataset'
+labels_dict = {}
+phishing_total = set()
+with open("combinedphishingaddresses.csv", "r") as f:
+    reader = csv.reader(f)
+    for row in reader:
+        phishing_total.add(row[0])
+
+print(len(phishing_total))
 
 
-def traverseDataset(path, depth):
+def traverseDataset(path):
     global G
     dir_list = os.listdir(path)
     # print(dir_list)
     for file in dir_list:
-        if (os.path.isfile(path+'/'+file)):
+        curr_path = path+'/'+file
+        if (os.path.isfile(curr_path)):
 
             if (re.match('^0x[a-fA-F0-9]{40}\.csv$', file)):
-                df = pd.read_csv(path+"/"+file)
+                df = pd.read_csv(curr_path)
                 df = df[df.isError == 0]
                 H = nx.from_pandas_edgelist(df, source='From', target='To', edge_attr=[
                                             'TxHash', 'TimeStamp', 'BlockHeight', 'Value', 'isError', 'Input', 'ContractAddress'], create_using=nx.DiGraph())
-
                 G = nx.compose(H, G)
                 # print(G.edges.data())
-
-        elif (os.path.isdir(path+"/"+file)):
+        elif (os.path.isdir(curr_path)):
             # print("pTH"+path)
-            traverseDataset(path+"/"+file, depth+1)
+            node = os.path.splitext(os.path.basename(curr_path))[0]
+            traverseDataset(curr_path)
 
 
 G = nx.DiGraph()
-traverseDataset(PATH, 0)
+traverseDataset(PATH)
+
+for node in G.nodes():
+    if node in phishing_total:
+        labels_dict[node] = 1
+    else:
+        labels_dict[node] = 0
+
+print(len(labels_dict.keys()))
+
+with open('labels.pickle', 'wb') as handle:
+    pickle.dump(labels_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+
+# nx.set_node_attributes(G, labels_dict)
 print(G)
 
 # saving graph created above in gexf format
-nx.write_gexf(G, "graph_visual.gexf")
+# nx.write_gexf(G, "graph_visual.gexf")
 
 
 # # Precompute probabilities and generate walks - **ON WINDOWS ONLY WORKS WITH workers=1**
