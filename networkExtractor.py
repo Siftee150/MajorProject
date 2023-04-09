@@ -6,8 +6,6 @@ import os
 
 apikey = "SQC918GDCD8TXY5MJUPNFMKC73UK56A7KW"
 
-PATH = './Dataset'
-
 http_headers = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko)'
                 ' Chrome/58.0.3029.110 Safari/537.36'}
 
@@ -79,7 +77,7 @@ def load_url(phishing_address, saved_address):
         df_inter = load_Tx(result_inter)
         df_outer = pd.concat([df_outer, df_inter], axis=0, ignore_index=True)
         df_outer = df_outer.sort_values(by="TimeStamp")
-        df_outer.to_csv('./'+saved_address+'/'+phishing_address + '.csv')
+        df_outer.to_csv(saved_address+'/'+phishing_address + '.csv')
         return True
 
 
@@ -89,7 +87,7 @@ def get_neighbor_list(prev, address):
         return []
     # print(df_address)
     set_neighbor = set()
-    newpath = PATH+'/'+prev + '/' + address + '/'
+    newpath = prev + '/' + address + '/'
     if not os.path.exists(newpath):
         os.makedirs(newpath)
     for i in df_address.index:
@@ -126,11 +124,14 @@ def read_data(k, filename, b, e=1):
         address = df_address.address[i]
         # print('------------------------------------')
         # print('begin', i, address)
-        newpath = PATH+'/'+address + '_data'
+        newpath = config['DATASET_PATH']+'/'+address + '_data'
         if not os.path.exists(newpath):
             os.makedirs(newpath)
         get_k_order_neighbor(k, 0, newpath, address)
         # print('------------------------------------')
 
 
-read_data(1, 'combinedphishingaddresses.csv', 0, 5)
+with open('config.json', 'r') as f:
+    config = json.load(f)
+
+read_data(1, 'combinedaddresses.csv', 0, 5)

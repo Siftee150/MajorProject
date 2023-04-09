@@ -1,4 +1,5 @@
 {
     "ETHERSCAN_USER":"",
-    "ETHERSCAN_PASS":""
+    "ETHERSCAN_PASS":"",
+    "DATASET_PATH" : "./Dataset"
 }

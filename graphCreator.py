@@ -1,4 +1,5 @@
 import csv
+import json
 import pickle
 import pandas as pd
 import networkx as nx
@@ -7,10 +8,9 @@ import re
 import matplotlib.pyplot as plt
 from node2vec import Node2Vec
 
-PATH = './Dataset'
 labels_dict = {}
 phishing_total = set()
-with open("combinedphishingaddresses.csv", "r") as f:
+with open("combinedaddresses.csv", "r") as f:
     reader = csv.reader(f)
     for row in reader:
         phishing_total.add(row[0])
@@ -25,14 +25,13 @@ def traverseDataset(path):
     for file in dir_list:
         curr_path = path+'/'+file
         if (os.path.isfile(curr_path)):
-
             if (re.match('^0x[a-fA-F0-9]{40}\.csv$', file)):
+               # print(curr_path)
                 df = pd.read_csv(curr_path)
                 df = df[df.isError == 0]
                 H = nx.from_pandas_edgelist(df, source='From', target='To', edge_attr=[
                                             'TxHash', 'TimeStamp', 'BlockHeight', 'Value', 'isError', 'Input', 'ContractAddress'], create_using=nx.DiGraph())
                 G = nx.compose(H, G)
-                # print(G.edges.data())
         elif (os.path.isdir(curr_path)):
             # print("pTH"+path)
             node = os.path.splitext(os.path.basename(curr_path))[0]
@@ -40,23 +39,31 @@ def traverseDataset(path):
 
 
 G = nx.DiGraph()
-traverseDataset(PATH)
 
+with open('config.json', 'r') as f:
+    config = json.load(f)
+
+traverseDataset(config['DATASET_PATH'])
+# print(phishing_total)
+# print('0x0eF2724a6D8be9f72f3d35b62E1e8a37CEaF721e' in phishing_total)
 for node in G.nodes():
     if node in phishing_total:
+        print(node)
         labels_dict[node] = 1
     else:
         labels_dict[node] = 0
 
-print(len(labels_dict.keys()))
-
 with open('labels.pickle', 'wb') as handle:
     pickle.dump(labels_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
+# print(labels_dict)
+nx.set_node_attributes(G, labels_dict, "label")
+# print(G.nodes)
 
 
-# nx.set_node_attributes(G, labels_dict)
-print(G)
+# print(G.nodes.data())
 
+# sparse_adj_matrix = nx.to_scipy_sparse_array(G)
+# print(sparse_adj_matrix)
 # saving graph created above in gexf format
 # nx.write_gexf(G, "graph_visual.gexf")
 
