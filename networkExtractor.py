@@ -4,7 +4,6 @@ import json
 import pandas as pd
 import os
 
-apikey = "SQC918GDCD8TXY5MJUPNFMKC73UK56A7KW"
 
 http_headers = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko)'
                 ' Chrome/58.0.3029.110 Safari/537.36'}
@@ -57,7 +56,8 @@ def load_url(phishing_address, saved_address):
     else:
         url_outer = 'http://api.etherscan.io/api?module=account&action=txlist&' \
                     'address=' + phishing_address + '&startblock=0&endblock=99999999&sort=asc&' \
-                                                    'apikey=' + apikey
+                                                    'apikey=' + \
+            config["API_KEY"]
         crawl_outer = urlrequest.urlopen(url_outer).read()
         json_outer = json.loads(crawl_outer.decode('utf8'))
         if json_outer["status"] == "1":
@@ -67,7 +67,7 @@ def load_url(phishing_address, saved_address):
         df_outer = load_Tx(result_outer)
         url_inter = 'http://api.etherscan.io/api?module=account&action=txlistinternal&address=' \
                     + phishing_address + '&startblock=0&endblock=99999999&sort=asc&apikey=' \
-                    + apikey
+                    + config['API_KEY']
         crawl_inter = urlrequest.urlopen(url_inter).read()
         json_inter = json.loads(crawl_inter.decode('utf8'))
         if json_inter["status"] == "1":

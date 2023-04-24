@@ -11,6 +11,8 @@ import torch
 from torch_geometric.utils.convert import from_networkx
 from sklearn.metrics import accuracy_score
 import torch
+import urllib.request as urlrequest
+import time
 
 from torch_geometric_signed_directed.utils import \
     link_class_split, in_out_degree
@@ -20,6 +22,7 @@ from torch_geometric_signed_directed.data import \
     load_directed_real_data
 
 labels_dict = {}
+balance_dict = {}
 phishing_total = set()
 with open("combinedaddresses.csv", "r") as f:
     reader = csv.reader(f)
@@ -53,107 +56,54 @@ with open('config.json', 'r') as f:
 
 traverseDataset(config['DATASET_PATH'])
 
+
 for node in G.nodes():
     if node in phishing_total:
         labels_dict[node] = 1
     else:
         labels_dict[node] = 0
 
+df_node = pd.DataFrame(columns=['account', 'balance'])
+
+# FORMING NODE_ATTRIBUTE For BALANCE_VALUE IN THIS COMMENTED CODE
+# for i in range(0, len(G.nodes()), 20):
+#     retry = True
+#     while (retry):
+#         try:
+#             print(i)
+#             total_nodes_arg = ""
+#             list_node = list(G.nodes())
+#             for node in list_node[i:i+20]:
+#                 total_nodes_arg = total_nodes_arg+str(node)+","
+#             balance_node_url = 'https://api.etherscan.io/api?module=account&action=balancemulti&address=' + \
+#                 total_nodes_arg[:len(total_nodes_arg)-1] + \
+#                 '&tag=latest&apikey='+config["API_KEY"]
+#             nodes_balance = urlrequest.urlopen(balance_node_url).read()
+#             json_balance_res = json.loads(nodes_balance.decode('utf8'))
+#             if (json_balance_res["status"] == '1'):
+#                 df = pd.json_normalize(json_balance_res["result"])
+#                 df_node = pd.concat([df_node, df], axis=0, ignore_index=True)
+#             retry = False
+#         except:
+#             retry = True
+#             time.sleep(1000)
+# df_node.to_csv("node-attr.csv")
+
+df = pd.read_csv('node-attr.csv', index_col=[0])
+df.set_index("account", drop=True, inplace=True)
+balance_dict = df.to_dict(orient='dict')['balance']
+
 with open('labels.pickle', 'wb') as handle:
     pickle.dump(labels_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
+with open('node_attribute.pickle', 'wb') as handle:
+    pickle.dump(balance_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
 nx.set_node_attributes(G, labels_dict, "y")
-
-
-def train(X_real, X_img, y, edge_index,
-          edge_weight, query_edges):
-    model.train()
-    out = model(X_real, X_img, edge_index=edge_index,
-                query_edges=query_edges,
-                edge_weight=edge_weight)
-    loss = criterion(out, y)
-    optimizer.zero_grad()
-    loss.backward()
-    optimizer.step()
-    train_acc = accuracy_score(y.cpu(),
-                               out.max(dim=1)[1].cpu())
-    return loss.detach().item(), train_acc
-
-
-def test(X_real, X_img, y, edge_index, edge_weight,
-         query_edges):
-    model.eval()
-    with torch.no_grad():
-        out = model(X_real, X_img, edge_index=edge_index,
-                    query_edges=query_edges,
-                    edge_weight=edge_weight)
-    test_acc = accuracy_score(y.cpu(),
-                              out.max(dim=1)[1].cpu())
-    return test_acc
-
-
-# print(nx.get_edge_attributes(G, 'Value'))
+nx.set_node_attributes(G, balance_dict, "x")
+nx.write_gexf(G, "graph_visual.gexf")
 
 pyg_graph = from_networkx(
     G, group_edge_attrs=['TimeStamp', 'Value', 'BlockHeight'])
+torch.save(pyg_graph, "pyg_graph.pickle")
 print(pyg_graph)
-
-device = torch.device('cuda' if
-                      torch.cuda.is_available() else 'cpu')
-
-data = load_directed_real_data(dataset='webkb',
-                               root='./', name='cornell').to(device)
-print(data)
-print(pyg_graph)
-
-# print(pyg_graph['TxHash'])
-model = MagNet_link_prediction(q=0.25, K=1, num_features=2,
-                               hidden=16, label_dim=2).to(device)
-criterion = torch.nn.NLLLoss()
-link_data = link_class_split(pyg_graph, prob_val=0.01,
-                             prob_test=0.01, task='direction', device=device)
-
-
-for split in list(link_data.keys()):
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.01,
-                                 weight_decay=0.0005)
-    edge_index = link_data[split]['graph']
-    edge_weight = link_data[split]['weights']
-
-    query_edges = link_data[split]['train']['edges']
-    y = link_data[split]['train']['label']
-    X_real = in_out_degree(edge_index,
-                           size=len(pyg_graph.y)).to(device)
-    X_img = X_real.clone()
-    query_val_edges = link_data[split]['val']['edges']
-    y_val = link_data[split]['val']['label']
-    for epoch in range(200):
-        train_loss, train_acc = train(X_real,
-                                      X_img, y, edge_index, edge_weight, query_edges)
-        val_acc = test(X_real, X_img, y_val,
-                       edge_index, edge_weight, query_val_edges)
-        print(f'Split: {split:02d}, Epoch: {epoch:03d}, \
-        Train_Loss: {train_loss:.4f}, Train_Acc: \
-        {train_acc:.4f}, Val_Acc: {val_acc:.4f}')
-
-    query_test_edges = link_data[split]['test']['edges']
-    y_test = link_data[split]['test']['label']
-    test_acc = test(X_real, X_img, y_test, edge_index,
-                    edge_weight, query_test_edges)
-    print(f'Split: {split:02d}, Test_Acc: {test_acc:.4f}')
-    model.reset_parameters()
-
-
-# sparse_adj_matrix = nx.to_scipy_sparse_array(G)
-# print(sparse_adj_matrix)
-# saving graph created above in gexf format
-# nx.write_gexf(G, "graph_visual.gexf")
-
-
-# # Precompute probabilities and generate walks - **ON WINDOWS ONLY WORKS WITH workers=1**
-# node2vec = Node2Vec(G, dimensions=64, walk_length=30,
-#                     num_walks=200, workers=4)  # Use temp_folder for big graphs
-
-# # Embed nodes
-# # Any keywords acceptable by gensim.Word2Vec can be passed, `dimensions` and `workers` are automatically passed (from the Node2Vec constructor)
-# model = node2vec.fit(window=10, min_count=1, batch_words=4)
